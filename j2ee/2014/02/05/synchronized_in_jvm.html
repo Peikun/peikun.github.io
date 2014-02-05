@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+    <!--[if lte IE 9]><meta http-equiv="refresh" content="0;url=/ie.html"><![endif]-->
+
+    <title>jvm中的synchronized</title>
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="/assets/css/style.css">
+  </head>
+  <body>
+    <aside id="sidebar">
+      <nav id="tags">
+        <a href="/index.html" id="avatar"></a>
+
+        <ul id="tags__ul">
+          <li id="js-label1" class="tags__li tags-btn active">所有文章</li>
+          <li id="js-label2" class="tags__li tags-btn">Java&J2EE</li>
+	  <li id="js-label3" class="tags__li tags-btn">Bug</li>
+          <li id="js-label4" class="tags__li tags-btn">Platform</li>
+          <li id="js-label5" class="tags__li tags-btn">随记</li>
+        </ul>
+
+        <div id="tags__bottom">
+          <a href="mailto:13910098756@163.com" id="icon-email" class="tags-btn fontello"></a>
+          <!-- <a href="/rss.xml" id="icon-feed" class="tags-btn fontello"></a> -->
+		  <a href="javascript:void(0)" id="icon-feed" class="tags-btn fontello"></a>
+        </div>
+      </nav> <!-- end #tags -->
+
+      <div id="posts-list">
+        <form action="" id="search-form">
+          <a href="/index.html" id="mobile-avatar"></a>
+          <!-- NOTE: input field is disabled by default -->
+          <input id="search-input" type="text" placeholder="Search..." disabled >
+        </form>
+
+        <nav id="pl__container">
+        
+          <a class="j2ee pl__all" href="/j2ee/2014/02/05/synchronized_in_jvm.html"><span class="pl__circle"></span><span class="pl__title">jvm中的synchronized</span><span class="pl__date">Feb 2014</span></a>
+        
+          <a class="life pl__all" href="/life/2013/12/29/write-to-2013.html"><span class="pl__circle"></span><span class="pl__title">写给2013</span><span class="pl__date">Dec 2013</span></a>
+        
+        </nav>
+      </div> <!-- end #posts-list -->
+    </aside> <!-- end #sidebar -->
+
+    <div id="post">
+      <div id="pjax">
+        <article id="post__content">
+  <h1 id="post__title" data-identifier="20140205">jvm中的synchronized</h1>
+  <p>背景：<br>
+　　Java的优势在于从语言层面就提供了对多线程同步的支持，而不像C++，要通过其它库才支持多线程。synchronized是JDK1.5前唯一实现同步的方式，即使1.5之后有了J.U.C包，但synchronized使用还是非常的广泛。<br>
+　　在使用synchronized时，我们并不知道JVM是如何保证资源同步，可以说我们对synchronized不是很了解，有些疑问常常有脑海里浮现，比如，synchronized同步时，线程是否有先后顺序，如果有，是FIFO还是LIFO呢?还有性能怎么样，当然，性能有很多测量的工具。为此，我想深入了解一下synchronized，查找过的一些资料我会在后面附录里贴出来，还有自己写的测试代码。<br>
+　　synchronized使用内置锁（也叫对象锁或对象监视器Monitor）实现同步，任何不等于NULL的对象都可以作为“锁”，当作用在方法上时，锁住的便是对象实例（this）；作用在静态方法时锁住的便是对象对应的class；当作用于代码块时，锁住的便是synchronized语法括号内的对象。   </p>
+
+<p>原理：<br>
+　　进入synchronized区域（字节码由monitorenter和monitorexit表示）的线程会争夺锁资源。<br>
+<img src="/assets/img/synchronized.png" alt="线程抢占锁原理图" title="线程抢占锁原理图"><br>
+　　JVM使用_cxq、_entryList（_entrySet）、_waitSet队列来实现线程状态的转换、资源抢占，最终达到同步的目的。<br>
+　　线程Thread-x首先通过spin（自旋），利用CAS尝试获取锁，这里可以看出，锁竞争是“”非公平“的，因为先到达的线程有可能在_cxq排队，而后到达的Thread-x线程已经开始参与锁竞争，如果得到锁，Thread-x将获取执行代码的权利，如果失败，Thread-x将通过CAS把自己放入_cxq队列，并将线程状态更新为阻塞(park)，_cxq是一个LIFO（后进先出）的队列，指针永远指向head。_entryList也是一个线程等待队列，当_owner(持有当前锁的线程)释放锁时，如果发现_cxq != null &amp;&amp; _entryList == null，那么，_owner将_cxq中的线程节点移动到_entryList，同时_owner会唤醒（unpark）它的下一个线程节点参与锁竞争，这里是参与，不是把锁直接给下一个线程节点。<br>
+　　那些调用wait方法被阻塞的线程被放置到_waitSet队列。<br>
+　　JVM底层实现synchronized是一个复杂的过程，远不像我说的这样简单，锁资源的体现在objectMonitor.cpp中，附录有源码。   </p>
+
+<p>验证：<br>
+　　1.既然_cxq是一个LIFO队列，那么，进入排队的线程应该也是按LIFO的顺序执行synchronized代码块，这里的进入排队的线程是指进入_cxq队列的线程，如果没有这个前提条件，线程竞争锁应该是无序的。下面是测试代码：  </p>
+<div class="highlight"><pre><code class="java language-java" data-lang="java"><span class="kn">import</span> <span class="nn">java.util.concurrent.locks.*</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.concurrent.TimeUnit</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">CountDownTest</span> <span class="o">{</span>
+    <span class="kd">private</span> <span class="kt">int</span> <span class="n">i</span><span class="o">;</span>
+    <span class="kd">private</span> <span class="kd">final</span> <span class="n">ReentrantLock</span> <span class="n">lock</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ReentrantLock</span><span class="o">();</span>
+
+    <span class="kd">public</span> <span class="nf">CountDownTest</span><span class="o">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">i</span> <span class="o">=</span> <span class="n">i</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">synchronizedDown</span><span class="o">()</span> <span class="o">{</span>
+        <span class="kd">synchronized</span><span class="o">(</span><span class="k">this</span><span class="o">){</span>
+
+            <span class="k">try</span> <span class="o">{</span>
+                <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">.</span><span class="na">sleep</span><span class="o">(</span><span class="mi">2L</span><span class="o">);</span>
+            <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">InterruptedException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+            <span class="o">}</span>
+
+            <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;enter : &quot;</span> <span class="o">+</span> <span class="n">Thread</span><span class="o">.</span><span class="na">currentThread</span><span class="o">().</span><span class="na">getName</span><span class="o">());</span>
+            <span class="o">--</span><span class="n">i</span><span class="o">;</span>
+
+        <span class="o">}</span>   
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">lockDown</span><span class="o">()</span> <span class="o">{</span>
+        <span class="n">lock</span><span class="o">.</span><span class="na">lock</span><span class="o">();</span>
+            <span class="k">try</span> <span class="o">{</span>
+                <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">.</span><span class="na">sleep</span><span class="o">(</span><span class="mi">2L</span><span class="o">);</span>
+                <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;enter : &quot;</span> <span class="o">+</span> <span class="n">Thread</span><span class="o">.</span><span class="na">currentThread</span><span class="o">().</span><span class="na">getName</span><span class="o">());</span>
+                <span class="o">--</span><span class="n">i</span><span class="o">;</span>
+            <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">InterruptedException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+            <span class="o">}</span><span class="k">finally</span><span class="o">{</span>
+                <span class="n">lock</span><span class="o">.</span><span class="na">unlock</span><span class="o">();</span>
+            <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">Test</span> <span class="kd">implements</span> <span class="n">Runnable</span> <span class="o">{</span>
+
+    <span class="kd">private</span> <span class="n">CountDownTest</span> <span class="n">countDown</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="nf">Test</span><span class="o">(</span><span class="n">CountDownTest</span> <span class="n">countDown</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kd">super</span><span class="o">();</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">countDown</span> <span class="o">=</span> <span class="n">countDown</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
+        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&quot;ready : &quot;</span> <span class="o">+</span> <span class="n">Thread</span><span class="o">.</span><span class="na">currentThread</span><span class="o">().</span><span class="na">getName</span><span class="o">());</span>
+        <span class="n">countDown</span><span class="o">.</span><span class="na">synchronizedDown</span><span class="o">();</span>
+        <span class="c1">//countDown.lockDown();</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+        <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">8</span><span class="o">;</span>
+        <span class="n">CountDownTest</span> <span class="n">countDown</span> <span class="o">=</span> <span class="k">new</span> <span class="n">CountDownTest</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
+        <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">i</span><span class="o">;</span> <span class="n">x</span><span class="o">++)</span> <span class="o">{</span>
+            <span class="n">Thread</span> <span class="n">t</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Thread</span><span class="o">(</span><span class="k">new</span> <span class="n">Test</span><span class="o">(</span><span class="n">countDown</span><span class="o">));</span>
+            <span class="n">t</span><span class="o">.</span><span class="na">start</span><span class="o">();</span>
+        <span class="o">}</span>
+
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+<p>　　执行结果如下：   </p>
+
+<blockquote>
+<p>ready : Thread-0<br>
+ready : Thread-1<br>
+ready : Thread-2<br>
+ready : Thread-3<br>
+ready : Thread-4<br>
+ready : Thread-5<br>
+ready : Thread-6<br>
+ready : Thread-7<br>
+enter : Thread-0<br>
+enter : Thread-7<br>
+enter : Thread-6<br>
+enter : Thread-5<br>
+enter : Thread-4<br>
+enter : Thread-3<br>
+enter : Thread-2<br>
+enter : Thread-1   </p>
+</blockquote>
+
+<p>　　除了线程-0，其它线程都是按LIFO顺序执行，由于线程-0是第一个准备竞争锁，那时锁还没被其它线程占用。因此，_cxq是LIFO队列。   </p>
+
+<p>　　2.synchronized和lock的性能比较。这个好像在本次讨论的话题之外，既然写了就把代码放上来。代码主要模拟在多线程竞争的条件下，对比synchronized和lock的消耗时间。   </p>
+<div class="highlight"><pre><code class="java language-java" data-lang="java"><span class="kn">package</span> <span class="n">io</span><span class="o">.</span><span class="na">github</span><span class="o">.</span><span class="na">peikun</span><span class="o">.</span><span class="na">multithread</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">java.util.concurrent.ExecutorService</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.concurrent.Executors</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.concurrent.TimeUnit</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.concurrent.atomic.AtomicInteger</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.concurrent.locks.Lock</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.concurrent.locks.ReentrantLock</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">SynchronizedVsLockTest</span> <span class="o">{</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="n">Object</span> <span class="n">mutex1</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Object</span><span class="o">();</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="n">Object</span> <span class="n">mutex2</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Object</span><span class="o">();</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="n">Lock</span> <span class="n">lock1</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ReentrantLock</span><span class="o">();</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="n">Lock</span> <span class="n">lock2</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ReentrantLock</span><span class="o">();</span>
+    <span class="kd">static</span> <span class="kt">int</span> <span class="n">counter1</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+    <span class="kd">static</span> <span class="kt">int</span> <span class="n">counter2</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="n">AtomicInteger</span> <span class="n">counter3</span> <span class="o">=</span> <span class="k">new</span> <span class="n">AtomicInteger</span><span class="o">();</span>
+    <span class="kd">static</span> <span class="kd">final</span> <span class="n">AtomicInteger</span> <span class="n">counter4</span> <span class="o">=</span> <span class="k">new</span> <span class="n">AtomicInteger</span><span class="o">();</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">int</span> <span class="n">LOOPS</span> <span class="o">=</span> <span class="mi">50</span> <span class="o">*</span> <span class="mi">1000</span> <span class="o">*</span> <span class="mi">1000</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
+        <span class="n">testSvL1</span><span class="o">();</span>
+        <span class="c1">// testSvL2();</span>
+    <span class="o">}</span>
+
+    <span class="kd">static</span> <span class="kt">void</span> <span class="nf">testSvL1</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
+        <span class="kt">int</span><span class="o">[]</span> <span class="n">threadCountArray</span> <span class="o">=</span> <span class="o">{</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="mi">8</span><span class="o">,</span> <span class="mi">16</span><span class="o">,</span> <span class="mi">32</span><span class="o">,</span> <span class="mi">64</span> <span class="o">};</span>
+        <span class="k">for</span> <span class="o">(</span><span class="kd">final</span> <span class="kt">int</span> <span class="n">t</span> <span class="o">:</span> <span class="n">threadCountArray</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">doTest</span><span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="k">new</span> <span class="n">Runnable</span><span class="o">()</span> <span class="o">{</span>
+                <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
+                    <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="o">(</span><span class="n">LOOPS</span> <span class="o">/</span> <span class="n">t</span><span class="o">);</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+                        <span class="kd">synchronized</span> <span class="o">(</span><span class="n">mutex1</span><span class="o">)</span> <span class="o">{</span>
+                            <span class="n">counter1</span><span class="o">++;</span>
+                        <span class="o">}</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+
+                <span class="nd">@Override</span>
+                <span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+                    <span class="k">return</span> <span class="s">&quot;1x synchronized {}&quot;</span><span class="o">;</span>
+                <span class="o">}</span>
+            <span class="o">});</span>
+            <span class="n">doTest</span><span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="k">new</span> <span class="n">Runnable</span><span class="o">()</span> <span class="o">{</span>
+                <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
+                    <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="o">(</span><span class="n">LOOPS</span> <span class="o">/</span> <span class="n">t</span><span class="o">);</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+                        <span class="n">lock1</span><span class="o">.</span><span class="na">lock</span><span class="o">();</span>
+
+                        <span class="k">try</span> <span class="o">{</span>
+                            <span class="n">counter1</span><span class="o">++;</span>
+                        <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+                            <span class="n">lock1</span><span class="o">.</span><span class="na">unlock</span><span class="o">();</span>
+                        <span class="o">}</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+
+                <span class="nd">@Override</span>
+                <span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+                    <span class="k">return</span> <span class="s">&quot;1x Lock.lock()/unlock()&quot;</span><span class="o">;</span>
+                <span class="o">}</span>
+            <span class="o">});</span>
+            <span class="n">doTest</span><span class="o">(</span><span class="n">t</span><span class="o">,</span> <span class="k">new</span> <span class="n">Runnable</span><span class="o">()</span> <span class="o">{</span>
+                <span class="kd">public</span> <span class="kt">void</span> <span class="nf">run</span><span class="o">()</span> <span class="o">{</span>
+                    <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="o">(</span><span class="n">LOOPS</span> <span class="o">/</span> <span class="n">t</span><span class="o">);</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+                        <span class="n">counter3</span><span class="o">.</span><span class="na">getAndIncrement</span><span class="o">();</span>
+                    <span class="o">}</span>
+                <span class="o">}</span>
+
+                <span class="nd">@Override</span>
+                <span class="kd">public</span> <span class="n">String</span> <span class="nf">toString</span><span class="o">()</span> <span class="o">{</span>
+                    <span class="k">return</span> <span class="s">&quot;1x AtomicInteger&quot;</span><span class="o">;</span>
+                <span class="o">}</span>
+            <span class="o">});</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+    <span class="cm">/*</span>
+<span class="cm">     * static void testSvL2() throws InterruptedException { for (final int t :</span>
+<span class="cm">     * new int[] { 1, 2, 4, 8, 16, 32, 64 }) { doTest(t, 3, new Runnable() {</span>
+<span class="cm">     * </span>
+<span class="cm">     * @Override public void run() { for (int i = 0; i &lt; (LOOPS / t); i++) {</span>
+<span class="cm">     * synchronized (mutex1) { counter1++; }</span>
+<span class="cm">     * </span>
+<span class="cm">     * synchronized (mutex2) { counter2++; } } }</span>
+<span class="cm">     * </span>
+<span class="cm">     * @Override public String toString() { return &quot;2x synchronized {}&quot;; } });</span>
+<span class="cm">     * doTest(t, 4, new Runnable() {</span>
+<span class="cm">     * </span>
+<span class="cm">     * @Override public void run() { for (int i = 0; i &lt; (LOOPS / t); i++) {</span>
+<span class="cm">     * lock1.lock();</span>
+<span class="cm">     * </span>
+<span class="cm">     * try { counter1++; } finally { lock1.unlock(); }</span>
+<span class="cm">     * </span>
+<span class="cm">     * lock2.lock();</span>
+<span class="cm">     * </span>
+<span class="cm">     * try { counter2++; } finally { lock2.unlock(); } } }</span>
+<span class="cm">     * </span>
+<span class="cm">     * @Override public String toString() { return &quot;2x Lock.lock()/unlock()&quot;; }</span>
+<span class="cm">     * }); doTest(t, 5, new Runnable() {</span>
+<span class="cm">     * </span>
+<span class="cm">     * @Override public void run() { for (int i = 0; i &lt; (LOOPS / t); i++) {</span>
+<span class="cm">     * counter3.getAndIncrement(); counter4.getAndIncrement(); } }</span>
+<span class="cm">     * </span>
+<span class="cm">     * @Override public String toString() { return &quot;2x AtomicInteger&quot;; } }); } }</span>
+<span class="cm">     */</span>
+
+    <span class="kd">private</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">doTest</span><span class="o">(</span><span class="kt">int</span> <span class="n">threads</span><span class="o">,</span> <span class="n">Runnable</span> <span class="n">runnable</span><span class="o">)</span>
+            <span class="kd">throws</span> <span class="n">InterruptedException</span> <span class="o">{</span>
+        <span class="kt">long</span> <span class="n">start</span> <span class="o">=</span> <span class="n">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">();</span>
+
+        <span class="n">ExecutorService</span> <span class="n">es</span> <span class="o">=</span> <span class="n">Executors</span><span class="o">.</span><span class="na">newFixedThreadPool</span><span class="o">(</span><span class="n">threads</span><span class="o">);</span>
+        <span class="k">try</span> <span class="o">{</span>
+            <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">threads</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span>
+                <span class="n">es</span><span class="o">.</span><span class="na">execute</span><span class="o">(</span><span class="n">runnable</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">Exception</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="nf">AssertionError</span><span class="o">(</span><span class="n">e</span><span class="o">);</span>
+        <span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+            <span class="n">es</span><span class="o">.</span><span class="na">shutdown</span><span class="o">();</span>
+        <span class="o">}</span>
+
+        <span class="n">es</span><span class="o">.</span><span class="na">awaitTermination</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">MINUTES</span><span class="o">);</span>
+
+        <span class="kt">long</span> <span class="n">time</span> <span class="o">=</span> <span class="o">(</span><span class="n">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">()</span> <span class="o">-</span> <span class="n">start</span><span class="o">);</span>
+        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">printf</span><span class="o">(</span><span class="s">&quot;%s with %d threads took %.3f seconds%n&quot;</span><span class="o">,</span>
+                <span class="n">runnable</span><span class="o">.</span><span class="na">toString</span><span class="o">(),</span> <span class="n">threads</span><span class="o">,</span> <span class="n">time</span> <span class="o">/</span> <span class="mi">1</span><span class="n">e3</span><span class="o">);</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div>
+<p>　　执行结果如下：</p>
+
+<blockquote>
+<p>1x synchronized {} with 1 threads took 0.698 seconds<br>
+1x Lock.lock()/unlock() with 1 threads took 1.063 seconds<br>
+1x AtomicInteger with 1 threads took 0.441 seconds<br>
+1x synchronized {} with 2 threads took 5.856 seconds<br>
+1x Lock.lock()/unlock() with 2 threads took 1.111 seconds<br>
+1x AtomicInteger with 2 threads took 0.442 seconds<br>
+1x synchronized {} with 4 threads took 5.949 seconds<br>
+1x Lock.lock()/unlock() with 4 threads took 1.030 seconds<br>
+1x AtomicInteger with 4 threads took 0.404 seconds<br>
+1x synchronized {} with 8 threads took 5.688 seconds<br>
+1x Lock.lock()/unlock() with 8 threads took 1.046 seconds<br>
+1x AtomicInteger with 8 threads took 0.421 seconds<br>
+1x synchronized {} with 16 threads took 5.883 seconds<br>
+1x Lock.lock()/unlock() with 16 threads took 1.032 seconds<br>
+1x AtomicInteger with 16 threads took 0.400 seconds<br>
+1x synchronized {} with 32 threads took 5.756 seconds<br>
+1x Lock.lock()/unlock() with 32 threads took 1.097 seconds<br>
+1x AtomicInteger with 32 threads took 0.465 seconds<br>
+1x synchronized {} with 64 threads took 5.781 seconds<br>
+1x Lock.lock()/unlock() with 64 threads took 1.031 seconds<br>
+1x AtomicInteger with 64 threads took 0.432 seconds   </p>
+</blockquote>
+
+<p>　　可以看到，synchronized在多线程竞争的情况下，执行时间相对比较长。   </p>
+
+<p>附录：<br>
+<a href="http://www.whoslab.me/blog/?p=393" title="Java synchronized 等待顺序">Java synchronized 等待顺序</a><br>
+<a href="http://wenku.baidu.com/view/41480552f01dc281e53af090.html" title="JVM底层又是如何实现synchronized的？">JVM底层又是如何实现synchronized的？</a><br>
+<a href="http://blog.hummingbird-one.com/?p=10086" title="hotspot内部对synchronize的实现">hotspot内部对synchronize的实现</a><br>
+<a href="https://www.ibm.com/developerworks/cn/java/j-lo-synchronized/" title="探索 Java 同步机制">探索Java同步机制</a><br>
+<a href="http://searchcode.com/codesearch/view/17981004" title="ObjectMonitor.cpp源码">ObjectMonitor.cpp源码</a></p>
+
+</article> <!-- end #post__content -->
+
+<div id="post__share">
+<!--
+  <a id="icon-twitter" class="fontello" href="https://twitter.com/intent/tweet?url=place_your_url_here/j2ee/2014/02/05/synchronized_in_jvm.html&text=jvm中的synchronized" target="_blank"></a>
+  <a id="icon-cc" class="fontello" href="http://creativecommons.org/licenses/by-nc-sa/3.0" target="_blank"></a>
+  <a id="icon-weibo" class="fontello" href="http://v.t.sina.com.cn/share/share.php?url=place_your_url_here/j2ee/2014/02/05/synchronized_in_jvm.html&title=jvm中的synchronized" target="_blank"></a>
+-->
+</div> <!-- end #post__share -->
+
+<div id="disqus_thread">
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink" target="_blank">Loading Disqus comments...</a>
+</div> <!-- end #disqus_thread -->
+
+<p id="copyright">Powered by <a href="http://jekyllrb.com" target="_blank">Jekyll</a>&nbsp;&nbsp;|&nbsp;&nbsp;Theme by 3-Jekyll</p>
+      </div> <!-- end #pjax -->
+	  
+	<!--
+      <div id="post__toc-trigger">
+        <div id="post__toc">
+          <span id="post__toc-title">Table of Contents</span>
+          <ul id="post__toc-ul"></ul>
+        </div>
+      </div>
+    </div> end #post -->
+	
+    <button id="js-fullscreen"><span id="icon-arrow" class="fontello"></span></button>
+
+    <script src="/assets/js/jquery-2.0.3.min.js"></script>
+    <script src="/assets/js/jquery.pjax.js"></script>
+    <script src="/assets/js/nprogress.js"></script>
+    <script src="/assets/js/script.js"></script>
+  </body>
+</html>

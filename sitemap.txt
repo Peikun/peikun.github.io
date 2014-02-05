@@ -9,4 +9,5 @@
 /atom.xml
 /index.html
 
+/j2ee/2014/02/05/synchronized_in_jvm.html
 /life/2013/12/29/write-to-2013.html
