@@ -6,9 +6,29 @@
     <atom:link href="place_your_blog_url_here/rss.xml" rel="self" type="application/rss+xml" />
     <description>place_your_blog_description_here</description>
     <language>place_your_blog_language_here</language>
-    <pubDate>Sun, 16 Mar 2014 00:42:40 +0800</pubDate>
-    <lastBuildDate>Sun, 16 Mar 2014 00:42:40 +0800</lastBuildDate>
+    <pubDate>Thu, 20 Mar 2014 12:18:49 +0800</pubDate>
+    <lastBuildDate>Thu, 20 Mar 2014 12:18:49 +0800</lastBuildDate>
 
+    
+    <item>
+      <title>remote jvm monitor use jmx</title>
+      <link>place_your_blog_url_here/j2ee/2014/03/20/remote-jvm-monitor-use-jmx.html</link>
+      <pubDate>20 Mar 2014</pubDate>
+      <author>place_your_name_here</author>
+      <guid>place_your_blog_url_here/j2ee/2014/03/20/remote-jvm-monitor-use-jmx</guid>
+      <description>&lt;p&gt;　　如果需要使用visualvm对远程JVM进行监控，需开启JMX服务，tomcat提供了这样的支持。  &lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;java language-java&quot; data-lang=&quot;java&quot;&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Djava&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;rmi&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;server&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;hostname&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;127.0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mf&quot;&gt;0.1&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Dcom&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;sun&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;management&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;jmxremote&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;port&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;8060&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Dcom&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;sun&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;management&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;jmxremote&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;ssl&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt; &lt;span class=&quot;err&quot;&gt;\&lt;/span&gt;
+&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Dcom&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;sun&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;management&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;jmxremote&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;authenticate&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;　　使用JDK7，visualvm还无法对远程JVM进行profiler，JDK8已经支持。   &lt;/p&gt;
+
+&lt;p&gt;　　介绍JMX不错的文章：&lt;br&gt;
+　　&lt;a href=&quot;http://zh.wikipedia.org/wiki/JMX&quot; title=&quot;JMX-维基百科&quot;&gt;JMX-维基百科&lt;/a&gt;&lt;br&gt;
+　　&lt;a href=&quot;http://www.ibm.com/developerworks/cn/java/j-lo-jse63/&quot; title=&quot;Java SE 6 新特性: JMX 与系统管理&quot;&gt;Java SE 6 新特性: JMX 与系统管理&lt;/a&gt;&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>GC Tuning Action</title>

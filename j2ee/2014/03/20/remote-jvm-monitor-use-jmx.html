@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
     <!--[if lte IE 9]><meta http-equiv="refresh" content="0;url=/ie.html"><![endif]-->
 
-    <title>404 Not Found Error</title>
+    <title>remote jvm monitor use jmx</title>
     <meta name="description" content="">
 
     <link rel="stylesheet" type="text/css" href="/assets/css/style.css">
@@ -54,8 +54,35 @@
     <div id="post">
       <div id="pjax">
         <article id="post__content">
-  <h1 id="post__title">404 Not Found Error</h1>
+  <h1 id="post__title" data-identifier="20140320">remote jvm monitor use jmx</h1>
+  <p>　　如果需要使用visualvm对远程JVM进行监控，需开启JMX服务，tomcat提供了这样的支持。  </p>
+<div class="highlight"><pre><code class="java language-java" data-lang="java"><span class="o">-</span><span class="n">Djava</span><span class="o">.</span><span class="na">rmi</span><span class="o">.</span><span class="na">server</span><span class="o">.</span><span class="na">hostname</span><span class="o">=</span><span class="mf">127.0</span><span class="o">.</span><span class="mf">0.1</span> <span class="err">\</span>
+<span class="o">-</span><span class="n">Dcom</span><span class="o">.</span><span class="na">sun</span><span class="o">.</span><span class="na">management</span><span class="o">.</span><span class="na">jmxremote</span><span class="o">.</span><span class="na">port</span><span class="o">=</span><span class="mi">8060</span> <span class="err">\</span>
+<span class="o">-</span><span class="n">Dcom</span><span class="o">.</span><span class="na">sun</span><span class="o">.</span><span class="na">management</span><span class="o">.</span><span class="na">jmxremote</span><span class="o">.</span><span class="na">ssl</span><span class="o">=</span><span class="kc">false</span> <span class="err">\</span>
+<span class="o">-</span><span class="n">Dcom</span><span class="o">.</span><span class="na">sun</span><span class="o">.</span><span class="na">management</span><span class="o">.</span><span class="na">jmxremote</span><span class="o">.</span><span class="na">authenticate</span><span class="o">=</span><span class="kc">false</span>
+</code></pre></div>
+<p>　　使用JDK7，visualvm还无法对远程JVM进行profiler，JDK8已经支持。   </p>
+
+<p>　　介绍JMX不错的文章：<br>
+　　<a href="http://zh.wikipedia.org/wiki/JMX" title="JMX-维基百科">JMX-维基百科</a><br>
+　　<a href="http://www.ibm.com/developerworks/cn/java/j-lo-jse63/" title="Java SE 6 新特性: JMX 与系统管理">Java SE 6 新特性: JMX 与系统管理</a></p>
+
 </article> <!-- end #post__content -->
+
+<div id="post__share">
+<!--
+  <a id="icon-twitter" class="fontello" href="https://twitter.com/intent/tweet?url=place_your_url_here/j2ee/2014/03/20/remote-jvm-monitor-use-jmx.html&text=remote jvm monitor use jmx" target="_blank"></a>
+  <a id="icon-cc" class="fontello" href="http://creativecommons.org/licenses/by-nc-sa/3.0" target="_blank"></a>
+  <a id="icon-weibo" class="fontello" href="http://v.t.sina.com.cn/share/share.php?url=place_your_url_here/j2ee/2014/03/20/remote-jvm-monitor-use-jmx.html&title=remote jvm monitor use jmx" target="_blank"></a>
+-->
+</div> <!-- end #post__share -->
+
+<div id="disqus_thread">
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink" target="_blank">Loading Disqus comments...</a>
+</div> <!-- end #disqus_thread -->
+
+<p id="copyright">Powered by <a href="http://jekyllrb.com" target="_blank">Jekyll</a>&nbsp;&nbsp;|&nbsp;&nbsp;Theme by 3-Jekyll</p>
       </div> <!-- end #pjax -->
 	  
 	<!--
