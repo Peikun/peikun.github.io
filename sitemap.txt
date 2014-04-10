@@ -9,6 +9,7 @@
 /atom.xml
 /index.html
 
+/j2ee/2014/04/10/http-get-encoding-with-tomcat.html
 /j2ee/2014/03/20/remote-jvm-monitor-use-jmx.html
 /j2ee/2014/03/01/gc-tuning-my-first.html
 /j2ee/2014/02/05/synchronized_in_jvm.html

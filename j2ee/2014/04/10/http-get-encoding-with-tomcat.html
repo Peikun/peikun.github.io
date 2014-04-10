@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
     <!--[if lte IE 9]><meta http-equiv="refresh" content="0;url=/ie.html"><![endif]-->
 
-    <title>Life and Tech Blog - I think success has no rules, but you can learn a lot from failure.</title>
+    <title>Http Get Encoding with Tomcat</title>
     <meta name="description" content="">
 
     <link rel="stylesheet" type="text/css" href="/assets/css/style.css">
@@ -56,10 +56,30 @@
     <div id="post">
       <div id="pjax">
         <article id="post__content">
-  <h1 id="post__title">Life and Tech Blog</h1>
-  <ul><li>I think success has no rules, but you can learn a lot from failure.</li></ul>
-  <img style="width:100%;height:100%;" src="/assets/img/brige.jpg" />
+  <h1 id="post__title" data-identifier="20140410">Http Get Encoding with Tomcat</h1>
+  <p>　　这周遇到request Get请求乱码的问题，环境在tomcat上。测试服务器上一切正常，生产环境却产生乱码。<br>
+　　Tomcat有两个属性决定URL QUERY STRING的编码，分别是URIEncoding和useBodyEncodingForURI。<br>
+　　<img src="/assets/img/uriencoding.jpg" alt="Attribute" title="Attribute">   </p>
+
+<p>　　URIEncoding决定Tomcat按什么样的字符编码decoder url query string。useBodyEncodingForURI属性有点特殊，默认是false，即不起作用，如果为true，URIEncoding将失效，那URIEncoding失效了，Tomcat decoder url query string的字符编码从哪获取?从useBodyEncodingForURI的描述可以看出默认编码是ISO－8859－1，如果指定contentType或显示的调用Request.setCharacterEncoding，Tomcat会使用这两者指定的编码进行decoder。这里要注意，contentType不是JSP的&lt;@ page contentType=&quot;&quot;&gt;,而是entype=&quot;application/x-www-form-urlencoded; charset=UTF-8&quot;，Request.setCharacterEncoding必须在过滤器中调用，否则无效果。<br>
+　　一般，URIEncoding和useBodyEncodingForURI二选一，只配置一个即可，但测试环境把两个都配上了，而生产环境只配了URIEncoding，所以产生乱码。</p>
+
 </article> <!-- end #post__content -->
+
+<div id="post__share">
+<!--
+  <a id="icon-twitter" class="fontello" href="https://twitter.com/intent/tweet?url=place_your_url_here/j2ee/2014/04/10/http-get-encoding-with-tomcat.html&text=Http Get Encoding with Tomcat" target="_blank"></a>
+  <a id="icon-cc" class="fontello" href="http://creativecommons.org/licenses/by-nc-sa/3.0" target="_blank"></a>
+  <a id="icon-weibo" class="fontello" href="http://v.t.sina.com.cn/share/share.php?url=place_your_url_here/j2ee/2014/04/10/http-get-encoding-with-tomcat.html&title=Http Get Encoding with Tomcat" target="_blank"></a>
+-->
+</div> <!-- end #post__share -->
+
+<div id="disqus_thread">
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com" class="dsq-brlink" target="_blank">Loading Disqus comments...</a>
+</div> <!-- end #disqus_thread -->
+
+<p id="copyright">Powered by <a href="http://jekyllrb.com" target="_blank">Jekyll</a>&nbsp;&nbsp;|&nbsp;&nbsp;Theme by 3-Jekyll</p>
       </div> <!-- end #pjax -->
 	  
 	<!--

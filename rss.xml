@@ -6,9 +6,24 @@
     <atom:link href="place_your_blog_url_here/rss.xml" rel="self" type="application/rss+xml" />
     <description>place_your_blog_description_here</description>
     <language>place_your_blog_language_here</language>
-    <pubDate>Thu, 20 Mar 2014 12:18:49 +0800</pubDate>
-    <lastBuildDate>Thu, 20 Mar 2014 12:18:49 +0800</lastBuildDate>
+    <pubDate>Thu, 10 Apr 2014 15:14:22 +0800</pubDate>
+    <lastBuildDate>Thu, 10 Apr 2014 15:14:22 +0800</lastBuildDate>
 
+    
+    <item>
+      <title>Http Get Encoding with Tomcat</title>
+      <link>place_your_blog_url_here/j2ee/2014/04/10/http-get-encoding-with-tomcat.html</link>
+      <pubDate>10 Apr 2014</pubDate>
+      <author>place_your_name_here</author>
+      <guid>place_your_blog_url_here/j2ee/2014/04/10/http-get-encoding-with-tomcat</guid>
+      <description>&lt;p&gt;　　这周遇到request Get请求乱码的问题，环境在tomcat上。测试服务器上一切正常，生产环境却产生乱码。&lt;br&gt;
+　　Tomcat有两个属性决定URL QUERY STRING的编码，分别是URIEncoding和useBodyEncodingForURI。&lt;br&gt;
+　　&lt;img src=&quot;/assets/img/uriencoding.jpg&quot; alt=&quot;Attribute&quot; title=&quot;Attribute&quot;&gt;   &lt;/p&gt;
+
+&lt;p&gt;　　URIEncoding决定Tomcat按什么样的字符编码decoder url query string。useBodyEncodingForURI属性有点特殊，默认是false，即不起作用，如果为true，URIEncoding将失效，那URIEncoding失效了，Tomcat decoder url query string的字符编码从哪获取?从useBodyEncodingForURI的描述可以看出默认编码是ISO－8859－1，如果指定contentType或显示的调用Request.setCharacterEncoding，Tomcat会使用这两者指定的编码进行decoder。这里要注意，contentType不是JSP的&amp;lt;@ page contentType=&amp;quot;&amp;quot;&amp;gt;,而是entype=&amp;quot;application/x-www-form-urlencoded; charset=UTF-8&amp;quot;，Request.setCharacterEncoding必须在过滤器中调用，否则无效果。&lt;br&gt;
+　　一般，URIEncoding和useBodyEncodingForURI二选一，只配置一个即可，但测试环境把两个都配上了，而生产环境只配了URIEncoding，所以产生乱码。&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>remote jvm monitor use jmx</title>
